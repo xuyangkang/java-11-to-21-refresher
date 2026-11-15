@@ -1,8 +1,10 @@
-# Java 21 实战速查 CheatSheet（刷题 · OOP · 工程复健）
+# Java 21 语法与算法速查 CheatSheet
 
-**基线：** 从 Java 11 升级到 **Java 21 LTS**（LeetCode = OpenJDK 25，HackerRank = Java 21，主流生产环境 = Java 21/25）。
-**Java 12→21 核心增量：** `record`（局部定义 / 紧凑构造 / 解构模式）、`sealed`、新 `switch`（返回值 / 模式匹配 / `when` / `case null`）、`instanceof` 流式收窄、文本块 `"""`、`stream().toList()`、`SequencedCollection / SequencedMap`、**虚拟线程（Virtual Threads）**。
-**跨平台提醒：** `_` 未命名变量（Java 22）和 `void main()`（Java 25）在纯 Java 21 环境（如 HackerRank）未开 preview 编不过，但在 LeetCode（JDK 25）与新版工程中已转正。
+> 姊妹篇：[Java 21 OOP · OOD 与工程实战 CheatSheet](./java21-oop-cheatsheet.md)
+
+**基线：** 从 Java 11 升级到 **Java 21 LTS**（LeetCode = OpenJDK 25，HackerRank = Java 21）。
+**刷题主力新特性：** `var`、局部 `record`（含解构模式）、新 `switch`（返回值 / 模式匹配 / `when` / `case null`）、`instanceof` 流式收窄、`stream().toList()`、`SequencedCollection / SequencedMap`（`getFirst/removeLast/putLast/pollFirstEntry`）。
+**跨平台提醒：** `_` 未命名变量（Java 22）和 `void main()`（Java 25）在纯 Java 21 环境（如 HackerRank）未开 preview 编不过，但在 LeetCode（JDK 25）中可直接用。
 
 ---
 
@@ -85,6 +87,7 @@ HackerRank 给了 `Result` 类和输入解析时，只填方法，不改成读 s
 | 字符串比较 | `s.equals(t)` / `Objects.equals(s, t)` | 不用 `==` |
 | 循环拼接 | `StringBuilder` | `s += c` 是 $O(n^2)$ |
 | 乘法溢出 | `long x = (long) a * b;` | `long x = a * b` 先按 int 算 |
+| 位移溢出 | `1L << j`；判位 `((y >>> j) & 1) != 0` | `1 << j` 在 `j >= 31` 变负或回绕！ |
 | 除法 | `int` 截断；`(double) a / b` | `-7 / 2 == -3`，`(-1) % 3 == -1` |
 | 非负取模 | `Math.floorMod(x, m)` | `(x % m + m) % m` 在大模数下可能 `int` 溢出 |
 | 包装类比较 | `Objects.equals(a, b)` / `a.equals(b)` | 自动装箱默认仅缓存 $-128 \sim 127$，超出范围 `==` 比较引用为 false；遇 `null` 拆箱抛 NPE |
@@ -95,11 +98,12 @@ HackerRank 给了 `Result` 类和输入解析时，只填方法，不改成读 s
 
 ```java
 // String & Math（含 Java 15-21 新增小工具）
-s.indexOf(x)  s.indexOf(x, from, to)  s.strip()  s.toLowerCase()  s.startsWith(p)
+s.indexOf(x)  s.indexOf(x, from, to)  s.strip()  s.toLowerCase()  s.startsWith(p)  s.startsWith(p, idx)
 String[] words = s.isBlank() ? new String[0] : s.strip().split("\\s+"); // 防前导空白/空串产生 ""
 String.join(",", list)  "%s %.2f".formatted(name, price)  "ab".repeat(3)
 Character.isDigit(c)  Character.isLetterOrDigit(c)  Character.toLowerCase(c)
-Integer.bitCount(7)  Math.clamp(val, min, max)  Integer.MAX_VALUE  Long.MAX_VALUE
+Integer.bitCount(x)  Integer.numberOfTrailingZeros(x)  Math.clamp(val, min, max)
+Integer.MAX_VALUE  Long.MAX_VALUE
 
 // StringBuilder（勿在循环中用 sb.insert(0, x)，每次搬移 O(n)，统一 append 后 reverse）
 sb.append(x)  sb.repeat("ab", 3)  sb.deleteCharAt(sb.length() - 1)  sb.reverse()
@@ -174,8 +178,8 @@ List<Integer> xs = List.of(1, 2, 3);
 Set<Character> vowels = Set.of('a', 'e', 'i', 'o', 'u');
 Map<String, Integer> mm = Map.of("I", 1, "V", 5);
 
-// 辅助结构
-record Pair(int x, int y) {}      // 自动 x() y() equals hashCode toString
+// 辅助结构（方法内也可直接声明局部 record，隐式 static）
+record Pair(int x, int y) {}      // 自动生成 x() y() equals hashCode toString
 ```
 
 **集合的坑：**
@@ -215,7 +219,7 @@ List<Integer> parsed = rawStrings.stream()
     .<Integer>mapMulti((s, sink) -> { if (!s.isBlank()) sink.accept(Integer.parseInt(s.strip())); })
     .toList();
 
-// 3. Collectors 工程与刷题王牌组合
+// 3. Collectors 王牌组合
 // (a) 分组与多级下游聚合 groupingBy
 Map<String, List<User>> byDept = users.stream()
     .collect(Collectors.groupingBy(User::dept));
@@ -252,13 +256,111 @@ IntSummaryStatistics stats = nums.stream().mapToInt(Integer::intValue).summarySt
 ```
 
 **Stream 避坑边界：**
-- **`Collectors.toMap` 两大线上故障点**：① 双参数版遇重复 key 直接抛 `IllegalStateException`（不确定唯一必写第 3 参数合并函数）；② **value 为 `null` 时必抛 `NullPointerException`**（底层调 `Map.merge` 禁 `null`）。
+- **`Collectors.toMap` 两大故障点**：① 双参数版遇重复 key 直接抛 `IllegalStateException`（不确定唯一必写第 3 参数合并函数）；② **value 为 `null` 时必抛 `NullPointerException`**（底层调 `Map.merge` 禁 `null`）。
 - **防自动装箱**：大量数值聚合优先走 `IntStream` / `LongStream`（`mapToInt` / `mapToLong`），避免 `Stream<Integer>.reduce` 反复拆装箱。
 - **何时果断写回普通 `for`**：需要原地改多个外部局部变量（Lambda 要求捕获变量 effectively final）、双指针/回溯复杂跳出、或内部需抛受检异常（`IOException`）时，别硬套 Stream。
 
 ---
 
-## 4. 算法模板
+## 4. Java 11 → 21 语法增量（刷题与日常复健重点）
+
+### 4.1 模式匹配与新 `switch`（干掉强转、`break` 与外层判空）
+
+```java
+// 1. instanceof 流式收窄（Java 16）：不仅 if 内能用，卫语句提前 return 后下方也直接生效
+if (!(obj instanceof String s)) return;
+System.out.println(s.strip());                   // s 在此处已是 String，无需强转
+
+// 2. 新 switch 当语句用（不返回值，末尾无分号）：天然无穿透，告别 break；箭头后可接单句、{} 块或 throw
+switch (cmd) {
+    case 'U' -> y++;
+    case 'D' -> y--;
+    case 'L', 'R' -> { log(cmd); moveX(cmd); }
+    default -> throw new IllegalArgumentException("bad cmd: " + cmd);
+}
+
+// 3. 新 switch 当表达式用（必须穷尽，右花括号后必须带分号 };）：多行块用 yield 产值
+int days = switch (month) {
+    case 1, 3, 5, 7, 8, 10, 12 -> 31;
+    case 4, 6, 9, 11 -> 30;
+    case 2 -> 28;
+    default -> { log("bad: " + month); yield 0; }
+};
+
+// 4. switch 类型匹配 + case null + when 守卫 + Record 嵌套解构（Java 21）
+record Point(int x, int y) {}
+record Line(Point from, Point to) {}
+
+String describe(Object obj) {
+    return switch (obj) {
+        case String s when s.isBlank() -> "blank str";            // 更具体的守卫/子类必须写在宽泛分支前面！
+        case String s -> "str: " + s;
+        case Line(Point(int x1, int y1), Point(int x2, int y2))   // 嵌套解构直接拿到内部字段
+            -> "(%d,%d)->(%d,%d)".formatted(x1, y1, x2, y2);
+        case null, default -> "other or null";                    // 合并接住 null 与默认分支
+    };
+}
+```
+
+**新 `switch` 必知防坑：**
+- **`default` 不会自动接 `null`**：未显式写 `case null`（或 `case null, default ->`）时，传入 `null` 照样抛 `NullPointerException`。
+- **分支支配顺序（Dominance）**：带 `when` 的分支必须排在同类型无守卫分支前面，子类必须排在父类前面，否则编译报错。
+- **`enum` / `sealed` 优先省去 `default`**：覆盖全部分支即算穷尽，不写 `default` 能让编译器在未来新增枚举值时自动抓漏。
+- **选择器类型边界**：Java 21 基本类型仍只支持 `byte / short / char / int`（不能直接 `switch (long / double / boolean)`）。
+
+### 4.2 `SequencedCollection / SequencedMap` 与文本块（Java 15–21）
+
+```java
+// SequencedCollection / SequencedSet / SequencedMap（Java 21 JEP 431）
+list.getFirst();  list.getLast();  list.removeLast();             // 空时抛 NoSuchElementException
+list.reversed();                                                  // O(1) 逆序视图，不改原列表；原地反转用 Collections.reverse(list)
+
+var lruSet = new LinkedHashSet<String>();
+lruSet.addLast("a");                                              // 若已存在，自动移到队尾！
+
+var seqMap = new LinkedHashMap<String, Integer>();
+seqMap.putLast("k", 1);                                           // 插入或更新值，并自动移到队尾
+var oldest = seqMap.pollFirstEntry();                             // O(1) 弹出队头 Map.Entry
+
+// 文本块（Java 15）：结束 """ 的列位置决定公共缩进剥离基准；行尾加 \ 可折行但不插入换行符
+String json = """
+        {
+          "user": "%s",
+          "role": "admin"
+        }
+        """.formatted(username);
+```
+
+<details>
+<summary><b>Vibe Coding 防懵速览：AI 常生成的 Java 22 → 25 LTS 新语法</b></summary>
+
+```java
+// 1. 未命名变量与模式 _（Java 22 正式；HackerRank Java 21 勿用，LeetCode JDK 25 可用）
+map.computeIfAbsent(k, _ -> new ArrayList<>()).add(v);
+try { Integer.parseInt(s); } catch (NumberFormatException _) { return -1; }
+if (obj instanceof Point(int x, _)) System.out.println(x);
+
+// 2. Stream Gatherers（Java 24 正式）：官方内置滑动窗口、分块、前缀扫描
+List<List<Integer>> windows = nums.stream().gather(Gatherers.windowSliding(3)).toList();
+List<List<Integer>> batches = nums.stream().gather(Gatherers.windowFixed(100)).toList();
+
+// 3. 灵活构造器体（Java 25 正式）：super(...) 前终于允许先写校验和计算逻辑
+class PositiveBigInt extends BigInteger {
+    PositiveBigInt(long val) {
+        if (val <= 0) throw new IllegalArgumentException(); // Java 21 编译报错，Java 25 合法
+        super(Long.toString(val));
+    }
+}
+
+// 4. 紧凑源文件与实例 main（Java 25 正式）：单文件脚本可省 class 声明与 static String[] args
+void main() { IO.println("Hello Java 25"); }
+```
+
+</details>
+
+---
+
+## 5. 算法模板
 
 **二分：左闭右开 lowerBound**
 
@@ -341,14 +443,15 @@ void backtrack(int[] nums, int start, List<Integer> path, List<List<Integer>> re
     for (int i = start; i < nums.length; i++) {
         path.add(nums[i]);
         backtrack(nums, i + 1, path, res);
-        path.remove(path.size() - 1);                // 或 path.removeLast()
+        path.removeLast();                           // Java 21（旧版 path.remove(path.size() - 1)）
     }
 }
 ```
 
-**滑动窗口（无重复最长子串）**
+**滑动窗口与分组循环**
 
 ```java
+// 1. 滑动窗口（无重复最长子串）
 int lengthOfLongestSubstring(String s) {
     Map<Character, Integer> last = new HashMap<>();
     int best = 0;
@@ -360,8 +463,15 @@ int lengthOfLongestSubstring(String s) {
     }
     return best;
 }
-// 通用：for r { 加入 s[r]; while (不合法) { 移除 s[l]; l++; } 更新 ans; }
-// 有负数时滑窗可能失效，改前缀和 + HashMap
+// 通用滑窗：for r { 加入 s[r]; while (不合法) { 移除 s[l]; l++; } 更新 ans; }（有负数时改前缀和 + HashMap）
+
+// 2. 分组循环（按连续相同/满足条件的段切分，零循环外收尾补刀！）
+for (int i = 0, n = s.length(); i < n; ) {
+    if (!isTarget(s.charAt(i))) { i++; continue; }   // 可选：跳过无关分隔段
+    int start = i;
+    while (i < n && sameGroup(start, i)) i++;
+    // 此时 [start, i) 即为完整一段
+}
 ```
 
 <details>
@@ -489,7 +599,7 @@ class Trie {
 |---|---|
 | 查重、计数、补数 | `HashSet` / `HashMap` |
 | 有序数组、单调判定、对答案二分 | 二分 |
-| 连续子数组 / 子串 | 滑动窗口、前缀和 |
+| 连续子数组 / 子串 | 滑动窗口、前缀和、分组循环 |
 | 最近更大 / 更小元素 | 单调栈 |
 | Top-K、合并有序 | 堆 |
 | 连通性、最短路 | BFS / DFS |
@@ -497,219 +607,3 @@ class Trie {
 | 重叠子问题、最优解 | DP |
 
 **复杂度口述：** 排序 $O(n \log n)$，二分 $O(\log n)$，BFS/DFS $O(V+E)$，堆 Top-K $O(n \log k)$，子集 $O(n \cdot 2^n)$。
-
----
-
-## 5. Java 11 → 21 核心新特性（复健重点）
-
-### 5.1 模式匹配与新 `switch`（干掉强转、`break` 与外层判空）
-
-```java
-// 1. instanceof 流式收窄（Java 16）：不仅 if 内能用，卫语句提前 return 后下方也直接生效
-if (!(obj instanceof String s)) return;
-System.out.println(s.strip());                   // s 在此处已是 String，无需强转
-
-// 2. 新 switch 当语句用（不返回值，末尾无分号）：天然无穿透，告别 break；箭头后可接单句、{} 块或 throw
-switch (cmd) {
-    case 'U' -> y++;
-    case 'D' -> y--;
-    case 'L', 'R' -> { log(cmd); moveX(cmd); }
-    default -> throw new IllegalArgumentException("bad cmd: " + cmd);
-}
-
-// 3. 新 switch 当表达式用（必须穷尽，右花括号后必须带分号 };）：多行块用 yield 产值
-int days = switch (month) {
-    case 1, 3, 5, 7, 8, 10, 12 -> 31;
-    case 4, 6, 9, 11 -> 30;
-    case 2 -> 28;
-    default -> { log("bad: " + month); yield 0; }
-};
-
-// 4. switch 类型匹配 + case null + when 守卫 + Record 嵌套解构（Java 21）
-record Point(int x, int y) {}
-record Line(Point from, Point to) {}
-
-String describe(Object obj) {
-    return switch (obj) {
-        case String s when s.isBlank() -> "blank str";            // 更具体的守卫/子类必须写在宽泛分支前面！
-        case String s -> "str: " + s;
-        case Line(Point(int x1, int y1), Point(int x2, int y2))   // 嵌套解构直接拿到内部字段
-            -> "(%d,%d)->(%d,%d)".formatted(x1, y1, x2, y2);
-        case null, default -> "other or null";                    // 合并接住 null 与默认分支
-    };
-}
-```
-
-**新 `switch` 必知防坑：**
-- **`default` 不会自动接 `null`**：未显式写 `case null`（或 `case null, default ->`）时，传入 `null` 照样抛 `NullPointerException`。
-- **分支支配顺序（Dominance）**：带 `when` 的分支必须排在同类型无守卫分支前面，子类必须排在父类前面，否则编译报错。
-- **`enum` / `sealed` 优先省去 `default`**：覆盖全部分支即算穷尽，不写 `default` 能让编译器在未来新增枚举值时自动抓漏。
-- **选择器类型边界**：Java 21 基本类型仍只支持 `byte / short / char / int`（不能直接 `switch (long / double / boolean)`）。
-
-### 5.2 `record` 进阶（Java 16：局部定义 + 紧凑构造器）
-
-```java
-// 紧凑构造器（Compact Constructor）：省略形参列表和末尾赋值，专心做校验与防御性拷贝
-public record Order(String id, List<String> items, int amount) {
-    public Order {
-        if (amount < 0) throw new IllegalArgumentException("negative amount");
-        items = List.copyOf(items);              // 归一化后自动赋给 this.items，实现深度不可变
-    }
-}
-// 方法内也可随时写局部 record（如 record Pair(int r, int c) {}），隐式 static，刷题零样板
-```
-
-### 5.3 集合、Stream 与文本块增量（Java 15–21）
-
-```java
-// Stream 直接转不可变 List（Java 16，告别 .collect(Collectors.toList())）
-List<String> names = users.stream().map(User::name).toList();     // 允许 null，不可增删/set
-
-// SequencedCollection / SequencedSet / SequencedMap（Java 21 JEP 431）
-list.getFirst();  list.getLast();  list.removeLast();             // 空时抛 NoSuchElementException
-list.reversed();                                                  // O(1) 逆序视图，不改原列表
-
-var lruSet = new LinkedHashSet<String>();
-lruSet.addLast("a");                                              // 若已存在，自动移到队尾！
-
-var seqMap = new LinkedHashMap<String, Integer>();
-seqMap.putLast("k", 1);                                           // 插入或更新值，并移到队尾
-var oldest = seqMap.pollFirstEntry();                             // O(1) 弹出队头 Map.Entry
-
-// 文本块（Java 15）：结束 """ 的列位置决定公共缩进剥离基准；行尾加 \ 可折行但不插入换行符
-String json = """
-        {
-          "user": "%s",
-          "role": "admin"
-        }
-        """.formatted(username);
-```
-
-### 5.4 工程并发与 IO：虚拟线程（Java 21 JEP 444）
-
-工程题不再手搓复杂线程池或写 `CompletableFuture` 回调链，回归**直观同步阻塞写法**：
-
-```java
-// 并发扇出聚合（ExecutorService 在 Java 19+、HttpClient 在 Java 21 均已实现 AutoCloseable）
-try (var exec = Executors.newVirtualThreadPerTaskExecutor()) {
-    Future<User> userF = exec.submit(() -> fetchUser(uid));
-    Future<List<Order>> ordersF = exec.submit(() -> fetchOrders(uid));
-    return new Profile(userF.get(), ordersF.get()); // 阻塞虚拟线程极轻量，自动挂载/卸载载体线程
-} // 出 try 块自动等待所有子任务完成并关闭
-
-// 单任务快速启动
-Thread vt = Thread.ofVirtual().name("job-", 0).start(() -> handle(req));
-```
-
-- **工程铁律 1（不池化）**：虚拟线程用完即弃，**绝不建固定大小虚拟线程池**；下游限流用 `Semaphore`。
-- **工程铁律 2（防 Pinning）**：在 **Java 21** 中，若阻塞 IO 包在 `synchronized` 内会钉死底层 OS 线程，高并发锁内有 IO 时改用 **`ReentrantLock`**（注：Java 24 JEP 491 已彻底消除该限制）。
-- **文件与编码**：Java 18 起全平台默认字符集统一为 **UTF-8**；读写小文件直接 `Files.readString(Path.of("a.txt"))` / `Files.writeString(...)`。
-
-<details>
-<summary><b>Vibe Coding 防懵速览：AI 常生成的 Java 22 → 25 LTS 新语法</b></summary>
-
-```java
-// 1. 未命名变量与模式 _（Java 22 正式；HackerRank Java 21 勿用，LeetCode JDK 25 可用）
-map.computeIfAbsent(k, _ -> new ArrayList<>()).add(v);
-try { Integer.parseInt(s); } catch (NumberFormatException _) { return -1; }
-if (obj instanceof Point(int x, _)) System.out.println(x);
-
-// 2. Stream Gatherers（Java 24 正式）：官方内置滑动窗口、分块、前缀扫描
-List<List<Integer>> windows = nums.stream().gather(Gatherers.windowSliding(3)).toList();
-List<List<Integer>> batches = nums.stream().gather(Gatherers.windowFixed(100)).toList();
-
-// 3. 灵活构造器体（Java 25 正式）：super(...) 前终于允许先写校验和计算逻辑
-class PositiveBigInt extends BigInteger {
-    PositiveBigInt(long val) {
-        if (val <= 0) throw new IllegalArgumentException(); // Java 21 编译报错，Java 25 合法
-        super(Long.toString(val));
-    }
-}
-
-// 4. 紧凑源文件与实例 main（Java 25 正式）：单文件脚本可省 class 声明与 static String[] args
-void main() { IO.println("Hello Java 25"); }
-```
-
-</details>
-
----
-
-## 6. OOP 与工程建模
-
-### 关键字直觉
-
-| 语法 | 想到什么 |
-|---|---|
-| `private` + 构造器 | 隐藏状态，构造时保证初始状态合法；`this.x = x` |
-| `final` 字段 | 引用只赋一次，不代表集合/数组内容不可变（对外返回用 `List.copyOf`） |
-| `static` | 属于类不属于实例；静态内部类不持有外部类引用 |
-| `interface` / `implements` | 可替换的行为契约；实现方法必须是 `public`；可含 `default` / `static` 方法 |
-| `abstract class` / `extends` | 共享状态 + 模板骨架；单继承，子类构造器先走 `super(...)`（Java 21） |
-| `record` | 不可变数据载体（隐式 `final`），自动生成构造器、`x()`、`equals` / `hashCode` / `toString` |
-| `sealed` ... `permits` | 受限继承层级，配合 `switch` 模式匹配可免 `default` 做编译器穷尽检查 |
-| `@Override` | 重写必加，防止把 `equals(Object)` 等签名误写成重载 |
-
-### 手写类与领域建模要点
-
-- **面向接口声明，组合优于继承**：字段和返回值优先写 `List<T>` / `Map<K, V>` 而非具体实现类。
-- **自定义对象做 `HashMap` 键 / 放 `HashSet`**：无可变状态直接用 `record`；手写 `class` 必须**同时**重写 `equals` 和 `hashCode`。
-- **用 `sealed + record` 替代脆弱的状态枚举/错误码**（现代 Java 最地道的代数数据类型 ADT）：
-
-```java
-// 1. Java 21 模式匹配手写 equals & hashCode
-class Point {
-    final int x, y;
-    Point(int x, int y) { this.x = x; this.y = y; }
-
-    @Override
-    public boolean equals(Object o) {
-        return o instanceof Point p && x == p.x && y == p.y;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(x, y);
-    }
-}
-
-// 2. 工程建模：sealed interface + record 表达 Result<T> / 状态机 / 表达式树
-sealed interface Result<T> permits Result.Ok, Result.Err {
-    record Ok<T>(T data) implements Result<T> {}
-    record Err<T>(int code, String msg) implements Result<T> {}
-}
-
-String render(Result<String> r) {
-    return switch (r) {                                  // 编译器穷尽检查，无需 default
-        case Result.Ok(var data) -> "200: " + data;
-        case Result.Err(int code, var msg) -> code + ": " + msg;
-    };
-}
-```
-
-<details>
-<summary><b>高频 OOD 模板：LRU Cache（Java 21 SequencedMap 组合写法）</b></summary>
-
-```java
-// Java 21 LinkedHashMap 原生支持 putLast / pollFirstEntry，用组合即可，告别重写 removeEldestEntry
-// （注：算法面试若面试官禁止直接用 LinkedHashMap，则手写 Node + 哨兵双向链表 + HashMap）
-class LRUCache {
-    private final int cap;
-    private final LinkedHashMap<Integer, Integer> map = new LinkedHashMap<>();
-
-    public LRUCache(int capacity) { this.cap = capacity; }
-
-    public int get(int key) {
-        Integer val = map.remove(key);
-        if (val == null) return -1;
-        map.putLast(key, val);                           // 移到队尾（最新访问）
-        return val;
-    }
-
-    public void put(int key, int value) {
-        map.putLast(key, value);                         // 插入或更新值，并自动移到队尾
-        if (map.size() > cap) map.pollFirstEntry();      // O(1) 淘汰队头（最久未用）
-    }
-}
-```
-
-</details>
