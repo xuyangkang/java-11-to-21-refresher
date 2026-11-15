@@ -1,6 +1,6 @@
 # Apache Beam (Java SDK) 实战与面试速查 CheatSheet
 
-> 姊妹篇：[Java 21 语法与算法篇](./java21-algo-cheatsheet.md) · [Java 21 OOP 与工程并发篇](./java21-oop-cheatsheet.md)
+> 姊妹篇：[FlumeJava 转开源 Beam 与外部数据栈速查](./flumejava-to-beam-cheatsheet.md) · [Java 21 语法与算法篇](./java21-algo-cheatsheet.md) · [Java 21 OOP 与工程并发篇](./java21-oop-cheatsheet.md)
 
 **定位：** 面向 **Data Engineer（数据工程）** 编码轮与流批一体系统设计轮（覆盖 Beam 统一编程模型、Batch/Streaming 核心 API、Window/Watermark/Trigger、Stateful & Timely `DoFn`、Join 调优与生产避坑）。
 

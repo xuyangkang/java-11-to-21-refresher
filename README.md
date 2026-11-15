@@ -22,6 +22,10 @@ Java 11 老兵回归 & Vibe Coding 实战复健笔记，覆盖基本语法与算
   - `Combine` 热 Key 扇出、`Side Input` 广播关联 vs `CoGroupByKey` 分布式 Join
   - 流式窗口、Watermark、三维 Trigger 与有状态定时 `Stateful & Timely DoFn`（含 TTL 去重模板）
   - Schema / Beam SQL、`TestStream` 确定性流单测与五大生产死穴（Fusion 打断、Coder 选型、幂等性）
+- **[FlumeJava 老兵转开源 Apache Beam & 外部数据栈速查 CheatSheet](./flumejava-to-beam-cheatsheet.md)**
+  - FlumeJava → Apache Beam API 肌肉记忆防串台对照（`PTable` 废除、`.apply()`、`KV`、`OutputReceiver`、`Metrics`）
+  - FlumeJava / MillWheel 核心优化与 **Spark / Flink** 面试术语双向翻译（Fusion、Combiner Lifting、AQE、Broadcast State）
+  - Google 体系与现代开源数据栈（Kafka / Parquet / Iceberg / Snowflake / ClickHouse / Airflow + dbt）架构对标
 - **[LeetCode 近期提交 Code Review 报告（Java 21 视角）](./code-review-report.md)**
   - 7 道近期实战题的溢出隐患、记忆化反模式与 Java 21 现代语法重构对照
 - **[`leetcode/`](./leetcode/)** — 近期归档题解源码
