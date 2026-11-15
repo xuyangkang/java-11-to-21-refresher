@@ -509,7 +509,15 @@ class Trie {
 if (!(obj instanceof String s)) return;
 System.out.println(s.strip());                   // s 在此处已是 String，无需强转
 
-// 2. switch 表达式返回值（Java 14）：无穿透，多行代码块用 yield 返回
+// 2. 新 switch 当语句用（不返回值，末尾无分号）：天然无穿透，告别 break；箭头后可接单句、{} 块或 throw
+switch (cmd) {
+    case 'U' -> y++;
+    case 'D' -> y--;
+    case 'L', 'R' -> { log(cmd); moveX(cmd); }
+    default -> throw new IllegalArgumentException("bad cmd: " + cmd);
+}
+
+// 3. 新 switch 当表达式用（必须穷尽，右花括号后必须带分号 };）：多行块用 yield 产值
 int days = switch (month) {
     case 1, 3, 5, 7, 8, 10, 12 -> 31;
     case 4, 6, 9, 11 -> 30;
@@ -517,21 +525,26 @@ int days = switch (month) {
     default -> { log("bad: " + month); yield 0; }
 };
 
-// 3. switch 类型匹配 + case null + when 守卫 + Record 嵌套解构（Java 21）
+// 4. switch 类型匹配 + case null + when 守卫 + Record 嵌套解构（Java 21）
 record Point(int x, int y) {}
 record Line(Point from, Point to) {}
 
 String describe(Object obj) {
     return switch (obj) {
-        case null -> "empty";                                     // 不用提前 if (obj == null)
-        case String s when s.isBlank() -> "blank str";            // when 布尔守卫
+        case String s when s.isBlank() -> "blank str";            // 更具体的守卫/子类必须写在宽泛分支前面！
         case String s -> "str: " + s;
         case Line(Point(int x1, int y1), Point(int x2, int y2))   // 嵌套解构直接拿到内部字段
             -> "(%d,%d)->(%d,%d)".formatted(x1, y1, x2, y2);
-        default -> "other";
+        case null, default -> "other or null";                    // 合并接住 null 与默认分支
     };
 }
 ```
+
+**新 `switch` 必知防坑：**
+- **`default` 不会自动接 `null`**：未显式写 `case null`（或 `case null, default ->`）时，传入 `null` 照样抛 `NullPointerException`。
+- **分支支配顺序（Dominance）**：带 `when` 的分支必须排在同类型无守卫分支前面，子类必须排在父类前面，否则编译报错。
+- **`enum` / `sealed` 优先省去 `default`**：覆盖全部分支即算穷尽，不写 `default` 能让编译器在未来新增枚举值时自动抓漏。
+- **选择器类型边界**：Java 21 基本类型仍只支持 `byte / short / char / int`（不能直接 `switch (long / double / boolean)`）。
 
 ### 5.2 `record` 进阶（Java 16：局部定义 + 紧凑构造器）
 
