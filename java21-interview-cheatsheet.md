@@ -113,7 +113,7 @@ for (char c : s.toCharArray()) cnt[c - 'a']++;
 
 ---
 
-## 3. 集合选型与 API
+## 3. 集合选型、Stream 与 API
 
 | 需求 | 声明 | 必背方法 |
 |---|---|---|
@@ -188,6 +188,73 @@ record Pair(int x, int y) {}      // 自动 x() y() equals hashCode toString
 - 勿用 `map.computeIfAbsent(state, s -> dfs(s))` 写递归记忆化（Java 9+ 内层递归改同一 `HashMap` 直接抛 `ConcurrentModificationException`；记忆化老实用 `get` 判 `null` + `put`）
 - `HashMap/HashSet` 无序；遍历 `PriorityQueue` 不等于有序
 - `new ArrayList<>(old)` 是浅拷贝；二维数组 `clone()` 只拷外层
+
+### Stream 与 `Collectors` 实战管道
+
+```java
+// 注：非 LeetCode 环境需显式 import java.util.stream.*;
+
+// 1. 常用流源构造（告别手写下标循环）
+IntStream.range(0, n);                                              // [0, n) 下标流；rangeClosed(1, n) 为 [1, n]
+Arrays.stream(a, l, r);                                             // 原生支持数组子区间 [l, r) 切片流，零拷贝
+Stream.iterate(head, Objects::nonNull, p -> p.next);                // Java 9+ 有界迭代（如一行把链表变 Stream）
+Stream.ofNullable(maybeNull);                                       // Java 9+：null 变空流，配合 flatMap 自动滤空
+
+// 2. 链式转换精华（含 Java 9-16 增量）
+List<Integer> topK = nestedLists.stream()
+    .flatMap(Collection::stream)                                    // 展平 Stream<List<T>> -> Stream<T>
+    .filter(x -> x > 0)
+    .distinct()
+    .sorted(Comparator.reverseOrder())
+    .takeWhile(x -> x >= 10)                                        // Java 9+：有序流不满足条件即短路停止（另有 dropWhile）
+    .limit(k)
+    .toList();                                                      // Java 16+ 不可变 List；要可变用 .collect(Collectors.toCollection(ArrayList::new))
+
+// Java 16+ mapMulti：1 对 0/1/多转换，省去 flatMap 每次创建临时子 Stream 的开销
+List<Integer> parsed = rawStrings.stream()
+    .<Integer>mapMulti((s, sink) -> { if (!s.isBlank()) sink.accept(Integer.parseInt(s.strip())); })
+    .toList();
+
+// 3. Collectors 工程与刷题王牌组合
+// (a) 分组与多级下游聚合 groupingBy
+Map<String, List<User>> byDept = users.stream()
+    .collect(Collectors.groupingBy(User::dept));
+
+Map<Character, Long> charFreq = s.chars().mapToObj(c -> (char) c)
+    .collect(Collectors.groupingBy(c -> c, Collectors.counting())); // 一行统计字符频率
+
+Map<String, List<Long>> idsByDept = users.stream()
+    .collect(Collectors.groupingBy(User::dept,
+        Collectors.mapping(User::id, Collectors.toList())));        // 分组后只提取特定字段（另有 summingLong / maxBy）
+
+// (b) 布尔二分桶 partitioningBy（单次遍历拆成 true / false 两组）
+Map<Boolean, List<User>> passOrFail = users.stream()
+    .collect(Collectors.partitioningBy(u -> u.score() >= 60));
+
+// (c) 转字典 toMap（第 3 参数处理重复 key，第 4 参数可传 LinkedHashMap::new 保序）
+Map<Long, User> userMap = users.stream()
+    .collect(Collectors.toMap(User::id, u -> u, (oldV, newV) -> newV));
+
+// (d) 字符串拼接 joining（带分隔符、前缀、后缀）
+String csv = nums.stream().map(String::valueOf).collect(Collectors.joining(", ", "[", "]"));
+
+// (e) 双路同时聚合 teeing（Java 12+：单次流遍历同时跑两个收集器再合并结果）
+record MinMax(int min, int max) {}
+MinMax mm = nums.stream().collect(Collectors.teeing(
+    Collectors.minBy(Integer::compare),
+    Collectors.maxBy(Integer::compare),
+    (minOpt, maxOpt) -> new MinMax(minOpt.orElseThrow(), maxOpt.orElseThrow())
+));
+
+// 4. 短路判定与数值汇总
+boolean hasNeg = Arrays.stream(a).anyMatch(x -> x < 0);             // 另有 allMatch（注意：空流返回 true！）/ noneMatch
+IntSummaryStatistics stats = nums.stream().mapToInt(Integer::intValue).summaryStatistics(); // 一次拿 count/sum/min/max/avg
+```
+
+**Stream 避坑边界：**
+- **`Collectors.toMap` 两大线上故障点**：① 双参数版遇重复 key 直接抛 `IllegalStateException`（不确定唯一必写第 3 参数合并函数）；② **value 为 `null` 时必抛 `NullPointerException`**（底层调 `Map.merge` 禁 `null`）。
+- **防自动装箱**：大量数值聚合优先走 `IntStream` / `LongStream`（`mapToInt` / `mapToLong`），避免 `Stream<Integer>.reduce` 反复拆装箱。
+- **何时果断写回普通 `for`**：需要原地改多个外部局部变量（Lambda 要求捕获变量 effectively final）、双指针/回溯复杂跳出、或内部需抛受检异常（`IOException`）时，别硬套 Stream。
 
 ---
 
