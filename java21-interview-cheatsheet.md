@@ -118,7 +118,7 @@ for (char c : s.toCharArray()) cnt[c - 'a']++;
 | 需求 | 声明 | 必背方法 |
 |---|---|---|
 | 动态数组 | `List<Integer> l = new ArrayList<>();` | `add` `get` `set` `size` `remove(int idx)` `removeLast()` |
-| 哈希表 | `Map<K,V> m = new HashMap<>();` | `getOrDefault` `merge` `computeIfAbsent` `containsKey` `entrySet` |
+| 哈希表 | `Map<K,V> m = new HashMap<>();` | `getOrDefault` `merge` `computeIfAbsent` `putIfAbsent` `entrySet` |
 | 哈希集合 | `Set<T> s = new HashSet<>();` | `add`（返回 boolean 可判重）`contains` `remove` |
 | 栈 | `Deque<Integer> st = new ArrayDeque<>();` | `push` `pop` `peek`（操作队头，遍历 `st` 是栈顶→栈底） |
 | 队列 | `Queue<Integer> q = new ArrayDeque<>();` | `offer` `poll` `peek` `isEmpty` |
@@ -130,11 +130,15 @@ for (char c : s.toCharArray()) cnt[c - 'a']++;
 不用 `Stack`、`Vector`；队列/栈统一 `ArrayDeque`（例外：需入队 `null` 节点如二叉树序列化时用 `LinkedList`）。
 
 ```java
-// Map 三件套
-cnt.merge(x, 1, Integer::sum);                               // 计数
-cnt.put(x, cnt.getOrDefault(x, 0) + 1);                      // 计数（另一种）
-graph.computeIfAbsent(u, k -> new ArrayList<>()).add(v);     // 建图 / 分组
-for (Map.Entry<String, Integer> e : cnt.entrySet()) { e.getKey(); e.getValue(); }
+// Map 默认值四件套（对标 C++ mp[k] / Python defaultdict）
+int c = cnt.getOrDefault(x, 0);                                       // 1. 只读兜底（不写入 map）
+for (int v : graph.getOrDefault(u, List.of())) { /* 孤立点安全跳过 */ }
+cnt.merge(x, 1, Integer::sum);                                        // 2. 累加 / 聚合（单次查表）
+dp.merge(state, score, Integer::max);                                 //    稀疏 DP 取 max/min，免填 INF
+cnt.merge(out, -1, (oldV, d) -> oldV + d == 0 ? null : oldV + d);     //    滑窗减 1 且归零自动删 key
+graph.computeIfAbsent(u, k -> new ArrayList<>()).add(v);              // 3. 容器懒初始化（Java 22+ 可写 _ ->）
+firstIdx.putIfAbsent(prefixSum, i);                                   // 4. 仅记录首次出现位置
+for (var e : cnt.entrySet()) { e.getKey(); e.getValue(); }
 
 // 堆
 PriorityQueue<Integer> maxHeap = new PriorityQueue<>(Collections.reverseOrder());
@@ -180,6 +184,8 @@ record Pair(int x, int y) {}      // 自动 x() y() equals hashCode toString
 - `ArrayDeque` 不能放 `null`；`poll/peek` 空时返回 `null`，拆箱成 `int` 会 NPE；`pop` 空栈抛异常
 - `Arrays.asList(new int[]{1,2,3})` 得到只有一个元素的列表
 - for-each 里增删 → `ConcurrentModificationException`，用 `removeIf` 或 `Iterator.remove()`
+- 勿写 `map.getOrDefault(u, new ArrayList<>()).add(v)`（缺 key 时加在临时列表上未入表），建图必用 `computeIfAbsent`
+- 勿用 `map.computeIfAbsent(state, s -> dfs(s))` 写递归记忆化（Java 9+ 内层递归改同一 `HashMap` 直接抛 `ConcurrentModificationException`；记忆化老实用 `get` 判 `null` + `put`）
 - `HashMap/HashSet` 无序；遍历 `PriorityQueue` 不等于有序
 - `new ArrayList<>(old)` 是浅拷贝；二维数组 `clone()` 只拷外层
 
