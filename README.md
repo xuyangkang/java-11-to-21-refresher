@@ -16,6 +16,12 @@ Java 11 老兵回归 & Vibe Coding 实战复健笔记，覆盖基本语法与算
   - 高频设计模式去样板化写法（函数式/枚举 `Strategy`、手写不可变 `Builder`）
   - 工程并发与资源管理（Java 21 虚拟线程并发扇出与 `Semaphore` 限流模板、并发容器速选表）
   - OOD 面试手写高频模板（`SequencedMap` 与哨兵双向链表双版本 `LRUCache`、万能预取式 `Iterator<T>`）
+- **[Apache Beam (Java SDK) 实战与面试速查 CheatSheet](./apache-beam-java-cheatsheet.md)**
+  - Beam 四问模型（What / Where / When / How）与 Java 泛型/时间类三大防坑
+  - `PipelineOptions` 骨架、`DoFn` 生命周期与多路输出死信队列（DLQ）模板
+  - `Combine` 热 Key 扇出、`Side Input` 广播关联 vs `CoGroupByKey` 分布式 Join
+  - 流式窗口、Watermark、三维 Trigger 与有状态定时 `Stateful & Timely DoFn`（含 TTL 去重模板）
+  - Schema / Beam SQL、`TestStream` 确定性流单测与五大生产死穴（Fusion 打断、Coder 选型、幂等性）
 - **[LeetCode 近期提交 Code Review 报告（Java 21 视角）](./code-review-report.md)**
   - 7 道近期实战题的溢出隐患、记忆化反模式与 Java 21 现代语法重构对照
 - **[`leetcode/`](./leetcode/)** — 近期归档题解源码

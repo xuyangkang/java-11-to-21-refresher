@@ -1,6 +1,6 @@
 # Java 21 语法与算法速查 CheatSheet
 
-> 姊妹篇：[Java 21 OOP · OOD 与工程实战 CheatSheet](./java21-oop-cheatsheet.md)
+> 姊妹篇：[Java 21 OOP · OOD 与工程实战](./java21-oop-cheatsheet.md) · [Apache Beam (Java SDK) 速查](./apache-beam-java-cheatsheet.md)
 
 **基线：** 从 Java 11 升级到 **Java 21 LTS**（LeetCode = OpenJDK 25，HackerRank = Java 21）。
 **刷题主力新特性：** `var`、局部 `record`（含解构模式）、新 `switch`（返回值 / 模式匹配 / `when` / `case null`）、`instanceof` 流式收窄、`stream().toList()`、`SequencedCollection / SequencedMap`（`getFirst/removeLast/putLast/pollFirstEntry`）。

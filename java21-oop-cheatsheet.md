@@ -1,6 +1,6 @@
 # Java 21 OOP · OOD 与工程实战 CheatSheet
 
-> 姊妹篇：[Java 21 语法与算法速查 CheatSheet](./java21-algo-cheatsheet.md)
+> 姊妹篇：[Java 21 语法与算法速查](./java21-algo-cheatsheet.md) · [Apache Beam (Java SDK) 速查](./apache-beam-java-cheatsheet.md)
 
 **定位：** 面向 OOD 面向对象设计轮、工程/系统 Coding 轮与日常 Vibe Coding 架构建模（Java 11 → **Java 21 LTS** 升级视角）。
 
